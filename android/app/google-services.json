@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "647822005449",
+    "project_id": "flow-861e2",
+    "storage_bucket": "flow-861e2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:647822005449:android:62f9c941bb11a58b986918",
+        "android_client_info": {
+          "package_name": "com.example.wordflow"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDkjM_E0TrUbeNd9euyO0PQptVfEuk8oMw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
