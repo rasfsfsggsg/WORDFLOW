@@ -48,28 +48,19 @@ class _HomeScreenState extends State<HomeScreen> {
   };
 
   String _getLocaleFromLanguage(String language) {
-    switch (language) {
-      case "English":
-        return "en_US";
-      case "Hindi":
-        return "hi_IN";
-      case "Kannada":
-        return "kn_IN";
-      case "Tamil":
-        return "ta_IN";
-      case "Telugu":
-        return "te_IN";
-
-      case "Marathi":
-        return "mr_IN";
-      case "Gujarati":
-        return "gu_IN";
-      case "Bengali":
-        return "bn_IN";
-
-      default:
-        return "en_US"; // डिफ़ॉल्ट भाषा
-    }
+    Map<String, String> localeMap = {
+      "English": "en-IN",
+      "Hindi": "hi-IN",
+      "Kannada": "kn-IN",
+      "Tamil": "ta-IN",
+      "Telugu": "te-IN",
+      "Malayalam": "ml-IN",
+      "Marathi": "mr-IN",
+      "Gujarati": "gu-IN",
+      "Bengali": "bn-IN",
+      "Odiya": "or-IN",
+    };
+    return localeMap[language] ?? "en-US";
   }
 
 
@@ -83,7 +74,45 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _setTranslator();
     _initSpeech();
+
+    // ✅ ADDED: Listener to update translation when user edits recognized speech
+    _spokenController.addListener(_updateTranslation);
   }
+
+  // ✅ NEW METHOD: Updates translation when user edits recognized text
+  void _updateTranslation() async {
+    String updatedText = _spokenController.text.trim();
+
+    if (updatedText.isEmpty) {
+      setState(() {
+        _translatedText = "";
+        _translatedController.text = "";
+      });
+      return;
+    }
+
+    if (_sourceLang != _targetLang && _translator != null) {
+      try {
+        final translatedWords = await _translator!.translateText(updatedText);
+        setState(() {
+          _translatedText = translatedWords;
+          _translatedController.text = _translatedText;
+        });
+      } catch (e) {
+        setState(() {
+          _translatedText = "Translation Error: $e";
+        });
+      }
+    } else {
+      setState(() {
+        _translatedText = updatedText;
+        _translatedController.text = _translatedText;
+      });
+    }
+  }
+
+
+
 
   void _setTranslator() {
     if (_sourceLang != _targetLang) {  // ✅ केवल तब सेट करें जब अनुवाद आवश्यक हो
@@ -108,6 +137,85 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _startListening() async {
+    bool available = await _speech.initialize(
+      onError: (error) {
+        print("❌ Speech Recognition Error: $error");
+        setState(() => _isListening = false);
+      },
+      onStatus: (status) {
+        print("🔊 Speech Status: $status");
+        if (status == "notListening" && _isListening) {
+          _startListening();
+        }
+      },
+    );
+
+    if (available) {
+      setState(() => _isListening = true);
+
+      _speech.listen(
+        onResult: (result) async {
+          String recognizedWords = result.recognizedWords.trim();
+          // ✅ पहले और अभी बोले गए टेक्स्ट को मिलाकर डुप्लिकेट हटाएं
+          Set<String> uniqueWords = {..._spokenText.split(" "), ...recognizedWords.split(" ")};
+          _spokenText = uniqueWords.join(" ").trim(); // ✅ केवल यूनिक शब्द जोड़ें
+
+
+          setState(() {
+            _spokenController.text = _spokenText.trim();
+          });
+
+          // ✅ अनुवाद सिर्फ तभी होगा जब भाषा अलग होगी
+          if (_sourceLang != _targetLang && _translator != null) {
+            try {
+              final translatedWords = await _translator!.translateText(_spokenText);
+              setState(() {
+                _translatedText = translatedWords;
+                _translatedController.text = _translatedText;
+                _showSaveShare = true;
+              });
+            } catch (e) {
+              print("❌ Translation Error: $e");
+              setState(() => _translatedText = "Translation Error: $e");
+            }
+          }
+
+          // ✅ 1 घंटे तक बिना रुके सुनता रहेगा
+          if (_isListening) {
+            _startListening();
+          }
+        },
+
+        localeId: _getLocaleFromLanguage(_sourceLang), // ✅ अब चुनी गई भाषा में सही आउटपुट मिलेगा
+        listenMode: stt.ListenMode.dictation,
+        pauseFor: const Duration(seconds: 500),
+        listenFor: const Duration(hours: 1),
+      );
+    }
+  }
+
+// ✅ डबल टैप करने पर माइक तुरंत बंद कर देगा और ऑटो-रीस्टार्ट को रोक देगा
+  void _handleDoubleTap() {
+    if (_isListening) {
+      _stopListening();
+      Fluttertoast.showToast(
+        msg: "Listening Stopped",
+        gravity: ToastGravity.BOTTOM,
+      );
+    }
+  }
+
+// ✅ माइक्रोफोन को तुरंत बंद करने के लिए फ़ंक्शन
+  void _stopListening() {
+    _speech.stop().then((_) {
+      setState(() => _isListening = false);
+    });
+  }
+
+
+
+
   void _toggleListening() {
     if (_isListening) {
       _stopListening();
@@ -115,72 +223,6 @@ class _HomeScreenState extends State<HomeScreen> {
       _startListening();
     }
   }
-
-  void _startListening() async {
-    setState(() => _isListening = true);
-
-    _speech.listen(
-      onResult: (result) async {
-        String recognizedWords = result.recognizedWords.trim();
-
-        // ✅ पहले और अभी बोले गए टेक्स्ट को मिलाकर डुप्लिकेट हटाएं
-        Set<String> uniqueWords = {..._spokenText.split(" "), ...recognizedWords.split(" ")};
-        _spokenText = uniqueWords.join(" ").trim(); // ✅ केवल यूनिक शब्द जोड़ें
-
-        setState(() {
-          _spokenController.text = _spokenText;
-        });
-
-        // ✅ यदि अनुवाद आवश्यक है (स्रोत और लक्ष्य भाषा अलग हैं)
-        if (_sourceLang != _targetLang && _translator != null) {
-          try {
-            final translatedWords = await _translator!.translateText(recognizedWords);
-
-            // ✅ पहले के अनुवादित टेक्स्ट में नए टेक्स्ट को जोड़ें और डुप्लिकेट हटाएं
-            Set<String> uniqueTranslatedWords = {..._translatedText.split(" "), ...translatedWords.split(" ")};
-            _translatedText = uniqueTranslatedWords.join(" ").trim();
-
-            setState(() {
-              _translatedController.text = _translatedText;
-              _showSaveShare = true;
-            });
-          } catch (e) {
-            setState(() => _translatedText = "Translation Error: $e");
-          }
-        } else {
-          // ✅ यदि अनुवाद की आवश्यकता नहीं है, तो केवल यूनिक शब्द जोड़ें
-          setState(() {
-            _translatedText = _spokenText;
-            _translatedController.text = _translatedText;
-            _showSaveShare = true;
-          });
-        }
-
-        if (!_speech.isListening) {
-          _stopListening();
-        }
-      },
-
-      localeId: _getLocaleFromLanguage(_sourceLang), // ✅ सही भाषा सेट करें
-      listenFor: const Duration(minutes: 10),
-      pauseFor: const Duration(seconds: 5),
-      partialResults: false,
-      listenMode: stt.ListenMode.dictation,
-    );
-  }
-
-
-
-
-  void _stopListening() {
-    if (_isListening) {
-      _speech.stop().then((_) {
-        setState(() => _isListening = false); // ✅ UI अपडेट होगा और माइक एनिमेशन बंद होगा
-      });
-    }
-  }
-
-
 
 
 
@@ -250,7 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 radius: 20),
             const SizedBox(width: 10),
             Text(widget.user.displayName ?? "User",
-                style: const TextStyle(color: Colors.white)),
+                style: const TextStyle(color: Colors.white70)),
           ],
         ),
         actions: [
@@ -336,19 +378,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 5), // Space between text and mic button
 
                 AvatarGlow(
-                  animate: _isListening, // Glow animation starts when listening
+                  animate: _isListening,
                   glowColor: Colors.red,
                   child: GestureDetector(
-                    onTap: _toggleListening,
+                    onDoubleTap: _handleDoubleTap,  // ✅ Double Tap को Handle करेगा
                     child: FloatingActionButton(
-                      onPressed: null,
+                      onPressed: _toggleListening, // सिंगल टैप पर टॉगल होगा
                       backgroundColor: _isListening ? Colors.red : Colors.green,
-                      // Green before tap, red after tap
-                      child: const Icon(
-                          Icons.mic, size: 36, color: Colors.white),
+                      child: const Icon(Icons.mic, size: 36, color: Colors.white),
                     ),
                   ),
                 ),
+
               ],
             )
 
@@ -409,8 +450,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
 
-  Widget _textBox(TextEditingController controller, String hint,
-      IconData icon) {
+  Widget _textBox(TextEditingController controller, String hint, IconData icon) {
     final ScrollController _scrollController = ScrollController();
 
     controller.addListener(() {
@@ -438,6 +478,12 @@ class _HomeScreenState extends State<HomeScreen> {
         child: TextField(
           controller: controller,
           maxLines: null,
+          onChanged: (value) {
+            if (controller == _spokenController) {
+              _updateTranslation(); // ✅ UPDATE TJ SYAa msajsas q   dois,masldhaiodosufad mjdasbnvw,soa sm qjwvaxfqs q akpkcs dwdw okdq, q,skasq, sqm shakq w
+              //xakxmakc xamllxmaa   mxakap  m 3e 3e2s slaca'JQ;DJD WD /
+            }
+          },
           decoration: InputDecoration(
             hintText: hint,
             border: InputBorder.none,
