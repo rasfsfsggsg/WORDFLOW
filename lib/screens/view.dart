@@ -159,7 +159,7 @@ class _ReadScreenState extends State<ReadScreen> {
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      isSpeaking && currentSpeakingText == widget.originalText ? Icons.mic_off : Icons.mic,
+                      isSpeaking && currentSpeakingText == widget.originalText ? Icons.volume_off : Icons.volume_up,
                       size: 40, // 👈 Bigger icon
                       color: Colors.white,
                     ),
@@ -212,7 +212,7 @@ class _ReadScreenState extends State<ReadScreen> {
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      isSpeaking && currentSpeakingText == widget.translatedText ? Icons.mic_off : Icons.mic,
+                      isSpeaking && currentSpeakingText == widget.translatedText ? Icons.volume_off  : Icons.volume_up,
                       size: 40, // 👈 Bigger icon
                       color: Colors.white,
                     ),
@@ -225,4 +225,6 @@ class _ReadScreenState extends State<ReadScreen> {
       ),
     );
   }
+}
+
 }
