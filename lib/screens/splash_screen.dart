@@ -81,7 +81,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
               // App Name (Stylized)
               const Text(
-                "WELCOME TO WORDFLOW",
+                "WELCOME TO RAEES KHAN",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 36, // Bigger font
