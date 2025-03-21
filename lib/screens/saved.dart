@@ -1,9 +1,12 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:wordflow/screens/view.dart'; // 📤 For sharing
+import 'package:wordflow/screens/view.dart';
+
+
 
 class SavedScreen extends StatefulWidget {
   final String userId;
@@ -41,6 +44,9 @@ class _SavedScreenState extends State<SavedScreen> {
           };
         }).toList();
 
+        // 🛠 SORT by timestamp (LATEST FIRST) ✅
+        savedTranscripts.sort((a, b) => b["timestamp"].compareTo(a["timestamp"]));
+
         _groupTranscriptsByDate();
       } else {
         savedTranscripts = [];
@@ -55,9 +61,9 @@ class _SavedScreenState extends State<SavedScreen> {
     }
   }
 
-  // 📅 Grouping transcripts by date
   void _groupTranscriptsByDate() {
     groupedTranscripts.clear();
+
     for (var transcript in savedTranscripts) {
       String date = _formatDate(transcript["timestamp"]);
       if (!groupedTranscripts.containsKey(date)) {
@@ -65,8 +71,16 @@ class _SavedScreenState extends State<SavedScreen> {
       }
       groupedTranscripts[date]!.add(transcript);
     }
+
+    // 🛠 Sort groupedTranscripts by date (LATEST FIRST) ✅
+    groupedTranscripts = Map.fromEntries(
+        groupedTranscripts.entries.toList()
+          ..sort((a, b) => b.key.compareTo(a.key))
+    );
+
     setState(() {});
   }
+
 
   // 📆 Format date
   String _formatDate(String? timestamp) {
@@ -156,7 +170,22 @@ class _SavedScreenState extends State<SavedScreen> {
       appBar: AppBar(
         title: const Text("Saved Transcripts"),
         backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white), // 🔙 Arrow का रंग सफेद
+        titleTextStyle: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold), // 📝 Title सफेद
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context); // 👈 Home Screen पर वापस जाने के लिए
+          },
+        ),
       ),
+
+
+
+
+
+
+
       body: Column(
         children: [
           // 🔍 Search Bar
@@ -242,4 +271,3 @@ class _SavedScreenState extends State<SavedScreen> {
     );
   }
 }
-
